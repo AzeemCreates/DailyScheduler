@@ -30,7 +30,8 @@ app.post("/api/message", async (req, res) => {
 
 app.get("/api/status", (req, res) => {
   res.json({
-    model: config.model,
+    provider: config.provider,
+    model: config.provider === "ollama" ? config.ollama.model : config.model,
     timezone: config.timezone,
     googleConfigured: cal.isConfigured(),
     googleConnected: cal.isConnected(),
@@ -77,8 +78,12 @@ app.post("/sms", async (req, res) => {
 });
 
 app.listen(config.port, () => {
+  const modelLabel = config.provider === "ollama" ? config.ollama.model : config.model;
   console.log(`DailyScheduler running at http://localhost:${config.port}`);
-  console.log(`Model: ${config.model} | Timezone: ${config.timezone}`);
+  console.log(`Provider: ${config.provider} (${modelLabel}) | Timezone: ${config.timezone}`);
+  if (config.provider === "ollama") {
+    console.log(`Ollama endpoint: ${config.ollama.baseUrl} (run "ollama serve" + "ollama pull ${config.ollama.model}" if not already done)`);
+  }
   if (!cal.isConfigured()) {
     console.log("Google Calendar: set GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET to enable booking.");
   } else if (!cal.isConnected()) {

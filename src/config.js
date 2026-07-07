@@ -1,13 +1,24 @@
 import "dotenv/config";
 
 export const config = {
-  port: Number(process.env.PORT || 3000),
+  port: Number(process.env.PORT || 5000),
 
-  // Planner model. Fable 5 is the default; when it is the active model the
-  // planner also opts into the server-side Opus 4.8 fallback so a rare
+  // Which planner backend to use: "anthropic" (hosted) or "ollama" (local,
+  // always-running model — no API key, nothing leaves the machine).
+  provider: (process.env.PLANNER_PROVIDER || "ollama").toLowerCase(),
+
+  // Anthropic backend. Fable 5 is the default; when it is the active model
+  // the planner also opts into the server-side Opus 4.8 fallback so a rare
   // classifier decline never fails a planning request outright.
   model: process.env.ANTHROPIC_MODEL || "claude-fable-5",
   fallbackModel: process.env.ANTHROPIC_FALLBACK_MODEL || "claude-opus-4-8",
+
+  // Ollama backend (local). Point OLLAMA_BASE_URL at wherever `ollama serve`
+  // is running — defaults to Ollama's standard local port.
+  ollama: {
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+    model: process.env.OLLAMA_MODEL || "qwen3:8b",
+  },
 
   timezone:
     process.env.TIMEZONE ||
@@ -23,7 +34,7 @@ export const config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     redirectUri:
       process.env.GOOGLE_REDIRECT_URI ||
-      `http://localhost:${process.env.PORT || 3000}/oauth2callback`,
+      `http://localhost:${process.env.PORT || 5000}/oauth2callback`,
     calendarId: process.env.GOOGLE_CALENDAR_ID || "primary",
   },
 

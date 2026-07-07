@@ -108,6 +108,7 @@
 
     fetch("/api/status").then((r) => r.json()).then((s) => {
       document.getElementById("status").textContent =
+        s.provider + ":" + s.model + " · " +
         (s.googleConnected ? "calendar connected" : "calendar not connected") + " · " + s.timezone;
     });
 

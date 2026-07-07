@@ -1,7 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { config } from "./config.js";
-
-const client = new Anthropic();
+import { planWithAnthropic } from "./providers/anthropic.js";
+import { planWithOllama } from "./providers/ollama.js";
 
 // Structured output schema for a plan: ranked to-dos + time blocks.
 const PLAN_SCHEMA = {
@@ -58,7 +57,9 @@ const SYSTEM = `You are a ruthless but kind personal chief of staff. You look at
 2. A ranking by what ACTUALLY matters: impact on the stated goals first, hard deadlines second, urgency-theater last. Be honest in each item's "reason" about why it beats the items below it. Busywork ranks at the bottom or gets dropped.
 3. A time-blocked schedule for the planning day: place the top-ranked items into the free slots provided, deep work in the longest uninterrupted slots, small tasks batched together. Never overlap the busy times given. Leave short gaps between blocks where sensible. Do not schedule outside the working window.
 
-All times you output must be ISO 8601 date-times with the correct UTC offset for the user's timezone. Only block what realistically fits — unblocked todos simply stay on the ranked list.`;
+All times you output must be ISO 8601 date-times with the correct UTC offset for the user's timezone. Only block what realistically fits — unblocked todos simply stay on the ranked list.
+
+Respond with ONLY the JSON object matching the required schema — no other text.`;
 
 /**
  * Generate a plan from goals + calendar availability.
@@ -79,29 +80,14 @@ export async function generatePlan({ goals, busy, userMessage, planDate }) {
     `My message: ${userMessage || "Plan my day."}`,
   ].join("\n");
 
-  const usingFable = config.model === "claude-fable-5";
+  const text =
+    config.provider === "ollama"
+      ? await planWithOllama({ system: SYSTEM, prompt, schema: PLAN_SCHEMA })
+      : await planWithAnthropic({ system: SYSTEM, prompt, schema: PLAN_SCHEMA });
 
-  const response = await client.beta.messages.create({
-    model: config.model,
-    max_tokens: 8000,
-    output_config: { format: { type: "json_schema", schema: PLAN_SCHEMA } },
-    system: SYSTEM,
-    messages: [{ role: "user", content: prompt }],
-    // Server-side fallback: if the primary model's safety classifiers decline
-    // a request, the same call is transparently re-served by the fallback.
-    ...(usingFable
-      ? {
-          betas: ["server-side-fallback-2026-06-01"],
-          fallbacks: [{ model: config.fallbackModel }],
-        }
-      : {}),
-  });
-
-  if (response.stop_reason === "refusal") {
-    throw new Error("The planner declined this request. Try rephrasing your goals or message.");
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Planner returned non-JSON output: ${text.slice(0, 200)}`);
   }
-
-  const text = response.content.find((b) => b.type === "text")?.text;
-  if (!text) throw new Error("Planner returned no content.");
-  return JSON.parse(text);
 }
