@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 export const config = {
-  port: Number(process.env.PORT || 5000),
+  port: Number(process.env.PORT || 5050),
 
   // Which planner backend to use: "anthropic" (hosted) or "ollama" (local,
   // always-running model — no API key, nothing leaves the machine).
@@ -34,7 +34,7 @@ export const config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     redirectUri:
       process.env.GOOGLE_REDIRECT_URI ||
-      `http://localhost:${process.env.PORT || 5000}/oauth2callback`,
+      `http://localhost:${process.env.PORT || 5050}/oauth2callback`,
     calendarId: process.env.GOOGLE_CALENDAR_ID || "primary",
   },
 

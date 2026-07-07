@@ -8,7 +8,7 @@ Works from four places, all backed by the same engine:
 
 | Channel | How |
 |---|---|
-| Web / iOS home screen | Chat UI at `http://localhost:5000` — installable as a PWA (Share → Add to Home Screen on iPhone) |
+| Web / iOS home screen | Chat UI at `http://localhost:5050` — installable as a PWA (Share → Add to Home Screen on iPhone) |
 | Terminal | `npm run cli` |
 | SMS | Twilio webhook → `POST /sms` — text your plans and "book it!" from any phone |
 | iOS Shortcuts / Siri | Apple Shortcut calling `POST /api/message` |
@@ -46,7 +46,7 @@ Ollama installer: https://ollama.com/download. Once installed it runs as a backg
 ```bash
 npm install
 cp .env.example .env    # defaults already point at Ollama on :11434
-npm start                # web UI + API + SMS webhook on http://localhost:5000
+npm start                # web UI + API + SMS webhook on http://localhost:5050
 npm run cli               # or chat in the terminal instead
 ```
 
@@ -57,14 +57,14 @@ The app talks to Ollama over plain HTTP (`http://localhost:11434` by default) �
 1. In [Google Cloud Console](https://console.cloud.google.com/) create a project, enable the **Google Calendar API**, and create an **OAuth client (Web application)** with this exact authorized redirect URI:
 
    ```
-   http://localhost:5000/oauth2callback
+   http://localhost:5050/oauth2callback
    ```
 
 2. Put the client ID/secret in `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`).
 3. Start the app, then open this URL in a browser to grant access:
 
    ```
-   http://localhost:5000/auth/google
+   http://localhost:5050/auth/google
    ```
 
    That's the exact link — it redirects into Google's consent screen, and on approval Google sends you back to `/oauth2callback`, which stores the token in `data/google-token.json` (auto-refreshes after that; you only do this once).
@@ -77,14 +77,14 @@ Set `PLANNER_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=...` in `.env` to use Cl
 
 ### SMS (Twilio)
 
-1. Expose the local server (e.g. `ngrok http 5000`) or run it on a box with a public URL.
+1. Expose the local server (e.g. `ngrok http 5050`) or run it on a box with a public URL.
 2. In the Twilio console, point your phone number's *"A message comes in"* webhook at `https://<your-url>/sms` (HTTP POST).
 3. Text the number: `plan my day` → get the ranked plan → reply `book it!`.
 
 ### iOS
 
 - **Home screen app:** open the web UI in Safari → Share → *Add to Home Screen*. It runs full-screen like a native app.
-- **Shortcut / Siri:** create a Shortcut with *Get Contents of URL* → `POST http://<your-host>:5000/api/message`, JSON body `{"user":"ios","text":"plan my day"}` (add header `x-api-key` if you set `APP_API_KEY`), then *Show Result*. Add a second shortcut with text `book it!`. Both can be voice-triggered via Siri.
+- **Shortcut / Siri:** create a Shortcut with *Get Contents of URL* → `POST http://<your-host>:5050/api/message`, JSON body `{"user":"ios","text":"plan my day"}` (add header `x-api-key` if you set `APP_API_KEY`), then *Show Result*. Add a second shortcut with text `book it!`. Both can be voice-triggered via Siri.
 - **SMS** works natively from Messages if you set up the Twilio channel.
 
 ## Commands (any channel)
