@@ -13,6 +13,10 @@ Works from four places, all backed by the same engine:
 | SMS | Twilio webhook → `POST /sms` — text your plans and "book it!" from any phone |
 | iOS Shortcuts / Siri | Apple Shortcut calling `POST /api/message` |
 
+## App icon
+
+The app looks for its icon at `public/icon.png` (referenced by `manifest.json` and the `<link rel="apple-touch-icon">` tag in `index.html`) — that file isn't checked in yet. Save a 1024×1024 PNG there and it becomes the icon everywhere: browser tab, PWA install, and the iOS home-screen icon when you "Add to Home Screen."
+
 ## How it works
 
 1. You save goals (`add goal ship the landing page by Friday`).
