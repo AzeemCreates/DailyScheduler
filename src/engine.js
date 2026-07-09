@@ -9,6 +9,8 @@ import {
   getPendingPlan,
   clearPendingPlan,
   logBooking,
+  logHistoryEntry,
+  getHistory,
 } from "./store.js";
 
 const HELP = [
@@ -18,11 +20,22 @@ const HELP = [
   '- "add goal <text>" — save a goal',
   '- "goals" — list saved goals',
   '- "remove goal <n>" — delete a goal',
+  '- "history" (or "history <n>") — see your last messages, in case you forgot what you said',
   '- "help" — this message',
 ].join("\n");
 
 function localTime(iso) {
   return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: config.timezone,
+  });
+}
+
+function localDateTime(iso) {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZone: config.timezone,
@@ -44,6 +57,18 @@ function renderPlan(plan, { compact = false } = {}) {
   return lines.join("\n");
 }
 
+function renderHistory(entries) {
+  if (!entries.length) return "No history yet.";
+  const lines = ["Your recent messages (most recent first):", ""];
+  for (const e of entries) {
+    const output = e.output.length > 160 ? e.output.slice(0, 160) + "…" : e.output;
+    lines.push(`[${localDateTime(e.at)}] you: ${e.input}`);
+    lines.push(`  → ${output.replace(/\n/g, " ")}`);
+    lines.push("");
+  }
+  return lines.join("\n").trim();
+}
+
 function todayISO() {
   const now = new Date();
   const fmt = new Intl.DateTimeFormat("en-CA", {
@@ -55,46 +80,51 @@ function todayISO() {
   return fmt.format(now); // YYYY-MM-DD
 }
 
-/**
- * Handle one inbound message from any channel (web, CLI, SMS, Shortcut).
- * Returns the reply text.
- */
-export async function handleMessage(userId, text, { compact = false } = {}) {
-  const t = (text || "").trim();
-  const lower = t.toLowerCase();
+/** Core command handling. Returns { reply, type, log } — log=false skips history logging. */
+async function respond(userId, t, lower, { compact }) {
+  if (!t || lower === "help") return { reply: HELP, type: "command", log: false };
 
-  if (!t || lower === "help") return HELP;
+  if (lower === "history" || lower.startsWith("history ")) {
+    const arg = lower.replace(/^history\s*/, "").trim();
+    const limit = /^\d+$/.test(arg) ? parseInt(arg, 10) : 10;
+    return { reply: renderHistory(getHistory(userId, { limit })), type: "command", log: false };
+  }
 
   if (lower === "goals" || lower === "list goals") {
     const goals = getGoals();
-    return goals.length
+    const reply = goals.length
       ? "Your goals:\n" + goals.map((g, i) => `${i + 1}. ${g}`).join("\n")
       : 'No goals saved yet. Use "add goal <text>".';
+    return { reply, type: "command" };
   }
 
   if (lower.startsWith("add goal")) {
     const goal = t.slice("add goal".length).replace(/^[:\s]+/, "");
-    if (!goal) return 'Usage: add goal <text>';
+    if (!goal) return { reply: "Usage: add goal <text>", type: "command", log: false };
     addGoal(goal);
-    return `Saved. You now have ${getGoals().length} goal(s).`;
+    return { reply: `Saved. You now have ${getGoals().length} goal(s).`, type: "command" };
   }
 
   if (lower.startsWith("remove goal")) {
     const n = parseInt(t.slice("remove goal".length), 10);
     const removed = Number.isInteger(n) ? removeGoal(n - 1) : null;
-    return removed ? `Removed: ${removed}` : "Usage: remove goal <number> (see \"goals\")";
+    const reply = removed ? `Removed: ${removed}` : 'Usage: remove goal <number> (see "goals")';
+    return { reply, type: "command" };
   }
 
   if (/^book( it)?!?$/.test(lower) || lower === "yes book it" || lower === "book it!") {
     const plan = getPendingPlan(userId);
-    if (!plan) return 'Nothing to book yet — ask me to "plan my day" first.';
+    if (!plan) return { reply: 'Nothing to book yet — ask me to "plan my day" first.', type: "command" };
     if (!cal.isConnected()) {
-      return "Google Calendar isn't connected yet. Open /auth/google on the server in a browser, then try again.";
+      return {
+        reply: "Google Calendar isn't connected yet. Open /auth/google on the server in a browser, then try again.",
+        type: "command",
+      };
     }
     const ids = await cal.bookBlocks(plan.blocks);
     logBooking(userId, plan, ids);
     clearPendingPlan(userId);
-    return `Booked ${ids.length} block(s) into your calendar. Go get it.`;
+    return { reply: `Booked ${ids.length} block(s) into your calendar. Go get it.`, type: "command" };
   }
 
   // Anything else is treated as a planning request (with the message as context).
@@ -107,5 +137,24 @@ export async function handleMessage(userId, text, { compact = false } = {}) {
     planDate,
   });
   setPendingPlan(userId, plan);
-  return renderPlan(plan, { compact });
+  return { reply: renderPlan(plan, { compact }), type: "planning" };
+}
+
+/**
+ * Handle one inbound message from any channel (web, CLI, SMS, Shortcut).
+ * Every message and its reply is persisted to data/history.json (per userId)
+ * so nothing is lost, even between restarts or across devices.
+ * Returns the reply text.
+ */
+export async function handleMessage(userId, text, { compact = false } = {}) {
+  const t = (text || "").trim();
+  const lower = t.toLowerCase();
+
+  const { reply, type, log = true } = await respond(userId, t, lower, { compact });
+
+  if (log) {
+    logHistoryEntry(userId, { type, input: t, output: reply });
+  }
+
+  return reply;
 }

@@ -73,3 +73,29 @@ export function logBooking(userId, plan, eventIds) {
   });
   write("bookings", history);
 }
+
+// --- Conversation history (every message + reply, so nothing gets lost) ----
+
+const MAX_HISTORY = 500; // total entries kept across all users; oldest trimmed first
+
+export function logHistoryEntry(userId, { type, input, output }) {
+  const history = read("history", []);
+  history.push({
+    userId,
+    type, // "planning" | "command"
+    input,
+    output,
+    at: new Date().toISOString(),
+  });
+  if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
+  write("history", history);
+}
+
+/** Most recent entries for a user, newest first. Pass type to filter (e.g. "planning"). */
+export function getHistory(userId, { limit = 20, type = null } = {}) {
+  const history = read("history", []);
+  return history
+    .filter((h) => h.userId === userId && (!type || h.type === type))
+    .slice(-limit)
+    .reverse();
+}

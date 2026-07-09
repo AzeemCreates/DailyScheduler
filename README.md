@@ -95,10 +95,13 @@ book it!               → books the proposed blocks into Google Calendar
 add goal <text>        → save a goal
 goals                  → list goals
 remove goal <n>        → delete a goal
+history                → your last 10 messages + replies (history 20 for more)
 help                   → command list
 ```
 
 Anything else you type is treated as a planning request with extra context, e.g. `plan my afternoon around the dentist, I need 2 hours of deep work`.
+
+Every message and reply — on every channel — is saved to `data/history.json`, so `history` works no matter where you sent it from.
 
 ## Configuration
 
