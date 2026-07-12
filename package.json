@@ -1,0 +1,20 @@
+{
+  "name": "dailyscheduler",
+  "version": "1.0.0",
+  "description": "Auto-plan scheduler: turns your goals into a ranked to-do list and time-blocked day, then books it straight into Google Calendar. Works via web, CLI, SMS, and iOS.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "cli": "node src/cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "googleapis": "^140.0.0"
+  }
+}

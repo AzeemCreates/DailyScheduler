@@ -1,0 +1,22 @@
+{
+  "name": "DailyScheduler",
+  "short_name": "Scheduler",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050b1f",
+  "theme_color": "#050b1f",
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

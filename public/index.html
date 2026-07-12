@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>DailyScheduler</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Scheduler" />
+  <meta name="theme-color" content="#050b1f" />
+  <style>
+    :root {
+      --bg: #f5f4f0; --panel: #ffffff; --text: #1c2126; --muted: #6b7280;
+      --accent: #b4552d; --bubble-me: #1c2126; --bubble-me-text: #f5f4f0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101418; --panel: #1a2027; --text: #e8e6e1; --muted: #8b939e;
+        --accent: #e0764a; --bubble-me: #e8e6e1; --bubble-me-text: #101418;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.5 Georgia, "Times New Roman", serif;
+      display: flex; flex-direction: column; min-height: 100dvh;
+    }
+    header {
+      padding: calc(env(safe-area-inset-top) + 14px) 20px 12px;
+      border-bottom: 1px solid rgba(128,128,128,.2);
+      display: flex; align-items: baseline; gap: 10px;
+    }
+    header h1 { font-size: 20px; margin: 0; font-style: italic; }
+    header .status { font-size: 12px; color: var(--muted); font-family: system-ui, sans-serif; }
+    main { flex: 1; overflow-y: auto; padding: 16px 14px 8px; }
+    .msg { max-width: 82%; margin: 8px 0; padding: 10px 14px; border-radius: 14px;
+           white-space: pre-wrap; background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+    .me { margin-left: auto; background: var(--bubble-me); color: var(--bubble-me-text); }
+    .quick { display: flex; gap: 8px; padding: 6px 14px; flex-wrap: wrap; }
+    .quick button {
+      font: 13px system-ui, sans-serif; padding: 6px 12px; border-radius: 999px;
+      border: 1px solid rgba(128,128,128,.35); background: transparent; color: var(--text); cursor: pointer;
+    }
+    form {
+      display: flex; gap: 8px; padding: 10px 14px calc(env(safe-area-inset-bottom) + 12px);
+      border-top: 1px solid rgba(128,128,128,.2); background: var(--bg);
+    }
+    input {
+      flex: 1; padding: 12px 14px; border-radius: 12px; font: 16px system-ui, sans-serif;
+      border: 1px solid rgba(128,128,128,.35); background: var(--panel); color: var(--text);
+    }
+    form button {
+      padding: 12px 18px; border: 0; border-radius: 12px; background: var(--accent);
+      color: #fff; font: 600 15px system-ui, sans-serif; cursor: pointer;
+    }
+    .quickadd {
+      margin: 4px 14px 0; padding: 12px; border-radius: 14px;
+      background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.08);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .quickadd h2 {
+      margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); font-family: system-ui, sans-serif; font-weight: 600;
+    }
+    .field { display: flex; align-items: center; gap: 8px; }
+    .field label {
+      width: 46px; flex-shrink: 0; font: 12px system-ui, sans-serif; color: var(--muted);
+    }
+    .field input {
+      flex: 1; padding: 10px 12px; border-radius: 10px; font: 15px system-ui, sans-serif;
+      border: 1px solid rgba(128,128,128,.35); background: var(--bg); color: var(--text);
+    }
+    .mic {
+      flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: 0;
+      background: transparent; font-size: 18px; cursor: pointer; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mic.listening { background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+    .quickadd .schedule {
+      margin-top: 2px; padding: 10px 14px; border: 0; border-radius: 10px;
+      background: var(--accent); color: #fff; font: 600 14px system-ui, sans-serif; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>DailyScheduler</h1>
+    <span class="status" id="status">…</span>
+  </header>
+  <main id="log"></main>
+  <div class="quick">
+    <button data-q="plan my day">plan my day</button>
+    <button data-q="book it!">book it!</button>
+    <button data-q="goals">goals</button>
+    <button data-q="history">history</button>
+    <button data-q="help">help</button>
+  </div>
+  <div class="quickadd">
+    <h2>Quick schedule</h2>
+    <div class="field">
+      <label for="eventInput">Event</label>
+      <input id="eventInput" placeholder="Say or type an event" autocomplete="off" />
+      <button type="button" class="mic" data-target="eventInput" title="Dictate event" aria-label="Dictate event">🎤</button>
+    </div>
+    <div class="field">
+      <label for="timeInput">Time</label>
+      <input id="timeInput" placeholder="Say or type a time" autocomplete="off" />
+      <button type="button" class="mic" data-target="timeInput" title="Dictate time" aria-label="Dictate time">🎤</button>
+    </div>
+    <button type="button" class="schedule" id="scheduleBtn">Schedule</button>
+  </div>
+  <form id="form">
+    <input id="input" placeholder="Tell me your goals, or say: plan my day" autocomplete="off" />
+    <button>Send</button>
+  </form>
+  <script>
+    const log = document.getElementById("log");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+
+    function add(text, me) {
+      const div = document.createElement("div");
+      div.className = "msg" + (me ? " me" : "");
+      div.textContent = text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function post(text) {
+      try {
+        const res = await fetch("/api/message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user: "web", text }),
+        });
+        const data = await res.json();
+        add(data.reply || data.error || "(no reply)");
+      } catch (e) {
+        add("Network error: " + e.message);
+      }
+    }
+
+    async function send(text) {
+      if (!text.trim()) return;
+      add(text, true);
+      input.value = "";
+      post(text);
+    }
+
+    form.addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
+    document.querySelectorAll(".quick button").forEach((b) =>
+      b.addEventListener("click", () => send(b.dataset.q)));
+
+    // --- Quick schedule: Event + Time fields, filled by speech-to-text ---
+    const eventInput = document.getElementById("eventInput");
+    const timeInput = document.getElementById("timeInput");
+    const scheduleBtn = document.getElementById("scheduleBtn");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      let activeRecognition = null;
+      let activeButton = null;
+
+      document.querySelectorAll(".mic").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (activeRecognition) {
+            activeRecognition.stop();
+            return;
+          }
+          const target = document.getElementById(btn.dataset.target);
+          const recognition = new SpeechRecognition();
+          recognition.lang = navigator.language || "en-US";
+          recognition.interimResults = true;
+          recognition.continuous = false;
+
+          recognition.onresult = (e) => {
+            let transcript = "";
+            for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+            target.value = transcript;
+          };
+          recognition.onerror = () => {
+            btn.classList.remove("listening");
+            activeRecognition = null;
+            activeButton = null;
+          };
+          recognition.onend = () => {
+            btn.classList.remove("listening");
+            activeRecognition = null;
+            activeButton = null;
+          };
+
+          activeRecognition = recognition;
+          activeButton = btn;
+          btn.classList.add("listening");
+          recognition.start();
+        });
+      });
+    } else {
+      document.querySelectorAll(".mic").forEach((btn) => {
+        btn.disabled = true;
+        btn.title = "Speech-to-text isn't supported in this browser — type instead.";
+        btn.style.opacity = "0.35";
+      });
+    }
+
+    scheduleBtn.addEventListener("click", () => {
+      const eventText = eventInput.value.trim();
+      const timeText = timeInput.value.trim();
+      if (!eventText || !timeText) {
+        add("Fill in both Event and Time before scheduling.");
+        return;
+      }
+      add(`Schedule: ${eventText} at ${timeText}`, true);
+      post(`Title: ${eventText}\nTime: ${timeText}`);
+      eventInput.value = "";
+      timeInput.value = "";
+    });
+
+    fetch("/api/status").then((r) => r.json()).then((s) => {
+      document.getElementById("status").textContent =
+        s.provider + ":" + s.model + " · " +
+        (s.googleConnected ? "calendar connected" : "calendar not connected") + " · " + s.timezone;
+    });
+
+    add('Hi — I plan your day from your goals.\nTry "add goal <something>", then "plan my day".\nWhen the plan looks right, reply "book it!" and it goes straight into Google Calendar.');
+  </script>
+</body>
+</html>
