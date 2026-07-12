@@ -105,6 +105,17 @@ help                   → command list
 
 Anything else you type is treated as a planning request with extra context, e.g. `plan my afternoon around the dentist, I need 2 hours of deep work`.
 
+### Quick-add a specific event (no AI guessing)
+
+If you already know exactly what and when, skip the planner entirely and give it a `Title:` and `Time:` directly — this is parsed deterministically in code, so it can't get the time wrong the way a model can:
+
+```
+Title: Team sync
+Time: 9:00 PM - 9:45 PM
+```
+
+Accepted time formats: `9pm-9:45pm`, `9:00 PM to 9:45 PM`, `11am-1pm` (handles crossing noon), 24-hour `21:00-21:45`, or just a single time like `9pm` (defaults to a 30-minute block). This still lands as a normal pending plan — reply `book it!` to send it to your calendar, same as any other plan.
+
 Every message and reply — on every channel — is saved to `data/history.json`, so `history` works no matter where you sent it from.
 
 ## Configuration

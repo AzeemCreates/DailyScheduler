@@ -1,5 +1,6 @@
 import { config } from "./config.js";
 import { generatePlan } from "./planner.js";
+import { parseQuickEvent } from "./quickEvent.js";
 import * as cal from "./calendar.js";
 import {
   getGoals,
@@ -20,6 +21,7 @@ const HELP = [
   '- "add goal <text>" — save a goal',
   '- "goals" — list saved goals',
   '- "remove goal <n>" — delete a goal',
+  '- "Title: <text>" + "Time: <time>" — schedule that exact event directly, no AI guessing (e.g. "Title: Team sync\\nTime: 9:00 PM - 9:45 PM")',
   '- "history" (or "history <n>") — see your last messages, in case you forgot what you said',
   '- "help" — this message',
 ].join("\n");
@@ -125,6 +127,28 @@ async function respond(userId, t, lower, { compact }) {
     logBooking(userId, plan, ids);
     clearPendingPlan(userId);
     return { reply: `Booked ${ids.length} block(s) into your calendar. Go get it.`, type: "command" };
+  }
+
+  if (lower.includes("title:") && lower.includes("time:")) {
+    const planDate = todayISO();
+    const quick = parseQuickEvent(t, { planDateISO: planDate });
+    if (!quick) {
+      return {
+        reply:
+          'Couldn\'t read that time. Try:\nTitle: <event name>\nTime: <e.g. 9:00 PM - 9:45 PM, or just 9pm>',
+        type: "command",
+      };
+    }
+    const minutes = Math.round((quick.end - quick.start) / 60000);
+    const plan = {
+      summary: `Scheduled: ${quick.title}`,
+      todos: [{ id: 1, rank: 1, title: quick.title, reason: "Directly scheduled by you.", minutes }],
+      blocks: [
+        { todoId: 1, title: quick.title, start: quick.start.toISOString(), end: quick.end.toISOString(), note: "" },
+      ],
+    };
+    setPendingPlan(userId, plan);
+    return { reply: renderPlan(plan, { compact }), type: "planning" };
   }
 
   // Anything else is treated as a planning request (with the message as context).
