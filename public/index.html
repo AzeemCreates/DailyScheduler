@@ -56,6 +56,34 @@
       padding: 12px 18px; border: 0; border-radius: 12px; background: var(--accent);
       color: #fff; font: 600 15px system-ui, sans-serif; cursor: pointer;
     }
+    .quickadd {
+      margin: 4px 14px 0; padding: 12px; border-radius: 14px;
+      background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.08);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .quickadd h2 {
+      margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); font-family: system-ui, sans-serif; font-weight: 600;
+    }
+    .field { display: flex; align-items: center; gap: 8px; }
+    .field label {
+      width: 46px; flex-shrink: 0; font: 12px system-ui, sans-serif; color: var(--muted);
+    }
+    .field input {
+      flex: 1; padding: 10px 12px; border-radius: 10px; font: 15px system-ui, sans-serif;
+      border: 1px solid rgba(128,128,128,.35); background: var(--bg); color: var(--text);
+    }
+    .mic {
+      flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; border: 0;
+      background: transparent; font-size: 18px; cursor: pointer; line-height: 1;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .mic.listening { background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+    .quickadd .schedule {
+      margin-top: 2px; padding: 10px 14px; border: 0; border-radius: 10px;
+      background: var(--accent); color: #fff; font: 600 14px system-ui, sans-serif; cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -71,8 +99,22 @@
     <button data-q="history">history</button>
     <button data-q="help">help</button>
   </div>
+  <div class="quickadd">
+    <h2>Quick schedule</h2>
+    <div class="field">
+      <label for="eventInput">Event</label>
+      <input id="eventInput" placeholder="Say or type an event" autocomplete="off" />
+      <button type="button" class="mic" data-target="eventInput" title="Dictate event" aria-label="Dictate event">🎤</button>
+    </div>
+    <div class="field">
+      <label for="timeInput">Time</label>
+      <input id="timeInput" placeholder="Say or type a time" autocomplete="off" />
+      <button type="button" class="mic" data-target="timeInput" title="Dictate time" aria-label="Dictate time">🎤</button>
+    </div>
+    <button type="button" class="schedule" id="scheduleBtn">Schedule</button>
+  </div>
   <form id="form">
-    <input id="input" placeholder="plan my day, or: Title: Team sync Time: 9pm-9:45pm" autocomplete="off" />
+    <input id="input" placeholder="Tell me your goals, or say: plan my day" autocomplete="off" />
     <button>Send</button>
   </form>
   <script>
@@ -88,10 +130,7 @@
       log.scrollTop = log.scrollHeight;
     }
 
-    async function send(text) {
-      if (!text.trim()) return;
-      add(text, true);
-      input.value = "";
+    async function post(text) {
       try {
         const res = await fetch("/api/message", {
           method: "POST",
@@ -105,9 +144,81 @@
       }
     }
 
+    async function send(text) {
+      if (!text.trim()) return;
+      add(text, true);
+      input.value = "";
+      post(text);
+    }
+
     form.addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
     document.querySelectorAll(".quick button").forEach((b) =>
       b.addEventListener("click", () => send(b.dataset.q)));
+
+    // --- Quick schedule: Event + Time fields, filled by speech-to-text ---
+    const eventInput = document.getElementById("eventInput");
+    const timeInput = document.getElementById("timeInput");
+    const scheduleBtn = document.getElementById("scheduleBtn");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      let activeRecognition = null;
+      let activeButton = null;
+
+      document.querySelectorAll(".mic").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (activeRecognition) {
+            activeRecognition.stop();
+            return;
+          }
+          const target = document.getElementById(btn.dataset.target);
+          const recognition = new SpeechRecognition();
+          recognition.lang = navigator.language || "en-US";
+          recognition.interimResults = true;
+          recognition.continuous = false;
+
+          recognition.onresult = (e) => {
+            let transcript = "";
+            for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+            target.value = transcript;
+          };
+          recognition.onerror = () => {
+            btn.classList.remove("listening");
+            activeRecognition = null;
+            activeButton = null;
+          };
+          recognition.onend = () => {
+            btn.classList.remove("listening");
+            activeRecognition = null;
+            activeButton = null;
+          };
+
+          activeRecognition = recognition;
+          activeButton = btn;
+          btn.classList.add("listening");
+          recognition.start();
+        });
+      });
+    } else {
+      document.querySelectorAll(".mic").forEach((btn) => {
+        btn.disabled = true;
+        btn.title = "Speech-to-text isn't supported in this browser — type instead.";
+        btn.style.opacity = "0.35";
+      });
+    }
+
+    scheduleBtn.addEventListener("click", () => {
+      const eventText = eventInput.value.trim();
+      const timeText = timeInput.value.trim();
+      if (!eventText || !timeText) {
+        add("Fill in both Event and Time before scheduling.");
+        return;
+      }
+      add(`Schedule: ${eventText} at ${timeText}`, true);
+      post(`Title: ${eventText}\nTime: ${timeText}`);
+      eventInput.value = "";
+      timeInput.value = "";
+    });
 
     fetch("/api/status").then((r) => r.json()).then((s) => {
       document.getElementById("status").textContent =
